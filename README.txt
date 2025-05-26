@@ -55,6 +55,7 @@ starts a simple http server on port 8000. We can connect to from box A it via:
 
 and the expected response is: 
 
+    `<h1>Hello from EC2-B</h1>`
 
 
 
