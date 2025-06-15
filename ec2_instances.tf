@@ -3,13 +3,13 @@
 #########################################################
 
 resource "aws_instance" "jump_box" {
-  ami           = "ami-084568db4383264d4"
-  instance_type = "t2.micro"
-  key_name      = aws_key_pair.jump_box_key.key_name
-  vpc_security_group_ids = [aws_security_group.SG_jump_box.id]
-  subnet_id = aws_subnet.main-public.id
-  
-  private_ip = var.jump_box_private_ip
+  ami                    = "ami-020cba7c55df1f615"
+  instance_type          = "t2.medium"
+  key_name               = aws_key_pair.jump_box_key.key_name
+  vpc_security_group_ids = [aws_security_group.SG_jump.id]
+  subnet_id              = aws_subnet.main-public.id
+  private_ip             = var.jump_box_private_ip
+
   tags = {
     Name = "Jump Box"
   }
@@ -20,70 +20,38 @@ output "jump_box_public_ip" {
 }
 
 #########################################################
-######  Private Box A (for Jump Box connection)  ########
+######  Langflow Box (for Jump Box connection)  ########
 #########################################################
 
 /*
-Box A will use the same key as the jump box. In order to facilitate the 
-connection from your local machine to the jump box to box A, we need a 
-way for the jump box to authenticate. It would be suboptimal to 
-put the private key on the jump box. Instead, we can use SSH agent forwarding 
-to facilitate connection. On your local machine, you can run: 
+The Langflow instance will use the same SSH key as the jump box. In order to facilitate
+the connection from your local machine, through the jump box, to the Langflow instance,
+we need a way for the jump box to authenticate. It would be suboptimal to place the
+private key on the jump box itself. Instead, we can use SSH agent forwarding.
 
-eval "$(ssh-agent -s)"
-ssh-add ~/.ssh/netsec_jump_box_key
+On your local machine, run:
 
-to start the SSH and load the private key into memory. 
+  eval "$(ssh-agent -s)"
+  ssh-add ~/.ssh/netsec_jump_box_key
 
-Then we can connect to the jump box with: 
+to start the SSH agent and load your private key into memory.
 
-ssh -A -i ~/.ssh/netsec_jump_box_key ubuntu@<jump-box-public-ip>
+Then connect to the jump box with agent forwarding:
 
-to connect to the jump box with agent forwarding so we can securely 
-authenticate to the private subnet as well. 
+  ssh -A -i ~/.ssh/netsec_jump_box_key ubuntu@<jump-box-public-ip>
+
+This lets you securely SSH from the jump box into the Langflow instance in the private subnet.
 */
 
-resource "aws_instance" "box_a" {
-  ami           = "ami-084568db4383264d4"
-  instance_type = "t2.micro"
-  key_name      = aws_key_pair.jump_box_key.key_name
-  vpc_security_group_ids = [aws_security_group.SG_Private_A.id]
-  subnet_id = aws_subnet.main-private.id
-  private_ip = var.box_a_private_ip
-
-
-  tags = {
-    Name = "Box A"
-  }
-}
-
-
-#########################################################
-##################  Private Box B  ######################
-#########################################################
-
-resource "aws_instance" "box_b" {
-  ami           = "ami-084568db4383264d4"
-  instance_type = "t2.micro"
-  vpc_security_group_ids = [aws_security_group.SG_Private_B.id]
-  subnet_id = aws_subnet.main-private.id
-  private_ip = var.box_b_private_ip
-
-  user_data = <<-EOF
-  #!/bin/bash
-  apt update
-  apt install -y python3
-
-  mkdir -p /home/ubuntu/www
-  echo "<h1>Hello from EC2-B</h1>" > /home/ubuntu/www/index.html
-
-  cd /home/ubuntu/www
-  nohup python3 -m http.server 8000 --bind 0.0.0.0 > /var/log/http.log 2>&1 &
-EOF
-
-
+resource "aws_instance" "langflow" {
+  ami                    = "ami-020cba7c55df1f615"
+  instance_type          = "t2.large"
+  key_name               = aws_key_pair.jump_box_key.key_name
+  vpc_security_group_ids = [aws_security_group.SG_langflow.id]
+  subnet_id              = aws_subnet.main-private.id
+  private_ip             = var.langflow_private_ip
 
   tags = {
-    Name = "Box B"
+    Name = "Langflow"
   }
 }

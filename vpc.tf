@@ -1,14 +1,9 @@
 resource "aws_vpc" "main" {
+  cidr_block = var.main_vpc_cidr_block
 
- cidr_block = var.main_vpc_cidr_block #This is a variable declared in 'vars.tf'
-
- 
- tags = {
-
-   Name = "Netsec-Main-VPC" # Name that will show up in AWS console
-
- }
-
+  tags = {
+    Name = "langflow-vpc"
+  }
 }
 
 #########################################################
@@ -17,12 +12,12 @@ resource "aws_vpc" "main" {
 
 resource "aws_subnet" "main-public" {
   vpc_id                  = aws_vpc.main.id
-  cidr_block              = var.public_subnet_cidr_block
-  availability_zone       = "us-east-1a" 
+  cidr_block              = var.public_langflow_subnet_cidr_block
+  availability_zone       = "us-east-1a"
   map_public_ip_on_launch = true
 
   tags = {
-    Name = "main-public-subnet"
+    Name = "langflow-public-subnet"
   }
 }
 
@@ -32,11 +27,11 @@ resource "aws_subnet" "main-public" {
 
 resource "aws_subnet" "main-private" {
   vpc_id                  = aws_vpc.main.id
-  cidr_block              = var.private_subnet_cidr_block
-  availability_zone       = "us-east-1a" 
-  map_public_ip_on_launch = false #No internet access!
+  cidr_block              = var.private_langflow_subnet_cidr_block
+  availability_zone       = "us-east-1a"
+  map_public_ip_on_launch = false
 
   tags = {
-    Name = "main-private-subnet"
+    Name = "langflow-private-subnet"
   }
-} 
+}

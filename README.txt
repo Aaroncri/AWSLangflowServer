@@ -1,11 +1,11 @@
-This is a sample implementation of a segmented AWS environment which is deployed in terraform.
+This is an AWS environment deployed in terraform for the purposes of hosting a Langflow server.
 
 To run the script yourself, you'll need to do the following: 
 
 1. Have terraform and AWS CLI installed on your local machine
 2. Create an SSH keypair with the command: 
 
-$ ssh-keygen -t rsa -b 4096 -f ~/.ssh/netsec_jump_box_key
+$ ssh-keygen -t rsa -b 4096 -f ~/.ssh/langflow_ssh_key
 
 3. To connect for testing you can do the following: 
 
@@ -19,43 +19,41 @@ $ ssh-keygen -t rsa -b 4096 -f ~/.ssh/netsec_jump_box_key
 the public IP address of the jump box, which you will need to connect
 via SSH. 
 
--If all goes well, connect to your jump box using SSH agent forwarding.
-You can run the following to start the SSH agent and pass your private 
-key to the  agent on your local machine: 
+-To connect to your servers, you can add the following to ~/.ssh/config: 
 
-    eval "$(ssh-agent -s)"
-    ssh-add ~/.ssh/netsec_jump_box_key
+Host jump
+  HostName  <jump_box_public_ip>
+  User      ubuntu
+  IdentityFile ~/.ssh/langflow_ssh_key
+  ForwardAgent yes
 
-To connect you can run: 
-
-    ssh -A -i ~/.ssh/netsec_jump_box_key ubuntu@<jump-box-public-ip>
+Host langflow
+  HostName  10.0.2.30
+  User      ubuntu
+  IdentityFile ~/.ssh/langflow_ssh_key
+  ProxyJump jump
 
 using the jump box IP that the script outputs. Note that as we have 
 configured this, the public IP of the jump box may change when you shut 
-it off and restart it. In order to have a persistent public IP, we have
-to modify our script to provision an AWS elastic ip address, which would
-incur additional costs, but you can certainly try out. 
+it off and restart it! 
 
--Once we've connected to the jump box, we can SSH into box A as follows: 
+To see the public IP of your instance, you can run: 
 
-    ssh ubuntu@10.0.2.30
+$aws ec2 describe-instances \
+  --query "Reservations[*].Instances[*].PublicIpAddress"  \
+  --output text \
+  --region us-east-1
 
-(Note that 10.0.2.30 is the IP we assigned to box A, which is specified in 
-vars.tf. The credential management will be automatically performed by your
-SSH agent.)
+in the terminal. 
 
--Finally, we can test out connectivity to Box B. We have configured Box B 
-to only allow connections on port 8000 from box A. This is simulating calls
-to a backend API, but in a real scenario we would want to add additional 
-security here by using HTTPS, which would require creating a certificate 
-and using TLS to connect. We have configured A to run a startup script that 
-starts a simple http server on port 8000. We can connect to from box A it via: 
+-To connect to the jumpbox you can now run: 
 
-    curl http://10.0.2.31:8000
+$ssh jump
 
-and the expected response is: 
+-To connect to the langlow server directly, you can run: 
 
-    `<h1>Hello from EC2-B</h1>`
+$ssh langflow
+
 
 
 

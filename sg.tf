@@ -1,110 +1,134 @@
-#Official documentation: https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group
-
 #########################################################
-############    Jumo Box Security Group  ################
+############    Jump Box Security Group  ################
 #########################################################
 
-#Declare the security group itself
-resource "aws_security_group" "SG_jump_box" {
-  name        = "SG-jump-box" #This is the name in AWS Console
-  description = "Security Group for the jump box. Should allow SSH from anywhere for connections."
+resource "aws_security_group" "SG_jump" {
+  name        = "SG-jump"
+  description = "Security Group for the jump box. SSH from anywhere; egress limited to DNS/HTTP/HTTPS."
   vpc_id      = aws_vpc.main.id
 
   tags = {
-    Name = "SG-jump-box" #This is an informal name tag for AWS
+    Name = "SG-jump"
   }
 }
 
-#You can declare rules as individual resources, with attachments made to the security group:
-resource "aws_vpc_security_group_ingress_rule" "allow_ssh" {
-  security_group_id = aws_security_group.SG_jump_box.id
-  cidr_ipv4   = "0.0.0.0/0"
-  from_port   = 22
-  to_port     = 22
-  ip_protocol = "tcp"
+# Ingress: SSH from anywhere
+resource "aws_vpc_security_group_ingress_rule" "jump_allow_ssh" {
+  security_group_id = aws_security_group.SG_jump.id
+  description       = "Allow SSH from anywhere"
+  ip_protocol       = "tcp"
+  from_port         = 22
+  to_port           = 22
+  cidr_ipv4         = "0.0.0.0/0"
 }
 
-/*
-AWS allows all egress by default, but Terraform overrides this!
-This means that we need to explicitly allow egress traffic in order 
-to use SSH. In general, if we don't add egress rules then no 
-TCP traffic can arrive at our device. We are allowing all egress
-communication: 
-*/
-
-resource "aws_vpc_security_group_egress_rule" "allow_ssh_response" {
-  security_group_id = aws_security_group.SG_jump_box.id
-
-  cidr_ipv4   = "0.0.0.0/0"
-
-  ip_protocol = "-1"  # -1 means "all protocols"
+# Egress: DNS → VPC resolver
+resource "aws_security_group_rule" "jump_egress_dns" {
+  type              = "egress"
+  description       = "Allow DNS (UDP 53) outbound to VPC resolver"
+  from_port         = 53
+  to_port           = 53
+  protocol          = "udp"
+  security_group_id = aws_security_group.SG_jump.id
+  cidr_blocks       = ["${cidrhost(var.main_vpc_cidr_block, 2)}/32"]
 }
 
+# Egress: HTTP → internet
+resource "aws_security_group_rule" "jump_egress_http" {
+  type              = "egress"
+  description       = "Allow HTTP (TCP 80) outbound"
+  from_port         = 80
+  to_port           = 80
+  protocol          = "tcp"
+  security_group_id = aws_security_group.SG_jump.id
+  cidr_blocks       = ["0.0.0.0/0"]
+}
+
+# Egress: HTTPS → internet
+resource "aws_security_group_rule" "jump_egress_https" {
+  type              = "egress"
+  description       = "Allow HTTPS (TCP 443) outbound"
+  from_port         = 443
+  to_port           = 443
+  protocol          = "tcp"
+  security_group_id = aws_security_group.SG_jump.id
+  cidr_blocks       = ["0.0.0.0/0"]
+}
+# Egress SSH
+resource "aws_security_group_rule" "jump_egress_ssh_to_langflow" {
+  type              = "egress"
+  description       = "Allow SSH to private Langflow subnet"
+  from_port         = 22
+  to_port           = 22
+  protocol          = "tcp"
+  security_group_id = aws_security_group.SG_jump.id
+  cidr_blocks       = [var.private_langflow_subnet_cidr_block]
+}
+
+
 #########################################################
-##########    Private Box Security Group A  #############
+##########      Langflow Security Group      ############
 #########################################################
 
-resource "aws_security_group" "SG_Private_A" {
-  name        = "SG-private-A" 
-  description = "Security Group for private box A. Should allow SSH from jump box SG."
+resource "aws_security_group" "SG_langflow" {
+  name        = "SG-langflow"
+  description = "Security Group for the Langflow instance. SSH & UI inbound; egress limited to DNS/HTTP/HTTPS."
   vpc_id      = aws_vpc.main.id
 
   tags = {
-    Name = "SG-private-A" 
+    Name = "SG-langflow"
   }
 }
 
-/*
-We need to use 'aws_security_group_rule' to restrict to traffic at the group level
-rather than by cidr main_vpc_cidr_block
-*/
-
-resource "aws_security_group_rule" "allow_ssh_from_jump" {
-  type                     = "ingress"
-  from_port                = 22
-  to_port                  = 22
-  protocol                 = "tcp"
-  security_group_id        = aws_security_group.SG_Private_A.id
-  source_security_group_id = aws_security_group.SG_jump_box.id
+# Ingress: SSH from anywhere
+resource "aws_vpc_security_group_ingress_rule" "langflow_allow_ssh" {
+  security_group_id = aws_security_group.SG_langflow.id
+  description       = "Allow SSH from anywhere"
+  ip_protocol       = "tcp"
+  from_port         = 22
+  to_port           = 22
+  cidr_ipv4         = "0.0.0.0/0"
 }
 
-resource "aws_vpc_security_group_egress_rule" "allow_all_private" {
-  security_group_id = aws_security_group.SG_Private_A.id
-
-  cidr_ipv4   = "0.0.0.0/0"
-
-  ip_protocol = "-1"  
+# Ingress: Langflow UI port
+resource "aws_vpc_security_group_ingress_rule" "langflow_allow_ui" {
+  security_group_id = aws_security_group.SG_langflow.id
+  description       = "Allow Langflow UI (TCP 7860) from anywhere"
+  ip_protocol       = "tcp"
+  from_port         = 7860
+  to_port           = 7860
+  cidr_ipv4         = "0.0.0.0/0"
 }
 
-#########################################################
-##########    Private Box Security Group B  #############
-#########################################################
-
-resource "aws_security_group" "SG_Private_B" {
-  name        = "SG-private-B" 
-  description = "Security Group for private box B. Should allow only http from box A"
-  vpc_id      = aws_vpc.main.id
-
-  tags = {
-    Name = "SG-private-B" 
-  }
+# Egress: DNS → VPC resolver
+resource "aws_security_group_rule" "langflow_egress_dns" {
+  type              = "egress"
+  description       = "Allow DNS (UDP 53) outbound to VPC resolver"
+  from_port         = 53
+  to_port           = 53
+  protocol          = "udp"
+  security_group_id = aws_security_group.SG_langflow.id
+  cidr_blocks       = ["${cidrhost(var.main_vpc_cidr_block, 2)}/32"]
 }
 
-
-resource "aws_security_group_rule" "allow_api_from_A" {
-  type                     = "ingress"
-  from_port                = 8000
-  to_port                  = 8000
-  protocol                 = "tcp"
-  security_group_id        = aws_security_group.SG_Private_B.id
-  source_security_group_id = aws_security_group.SG_Private_A.id
-  description              = "Allow API traffic from box A"
+# Egress: HTTP → internet
+resource "aws_security_group_rule" "langflow_egress_http" {
+  type              = "egress"
+  description       = "Allow HTTP (TCP 80) outbound"
+  from_port         = 80
+  to_port           = 80
+  protocol          = "tcp"
+  security_group_id = aws_security_group.SG_langflow.id
+  cidr_blocks       = ["0.0.0.0/0"]
 }
 
-resource "aws_vpc_security_group_egress_rule" "allow_all_private_B" {
-  security_group_id = aws_security_group.SG_Private_B.id
-
-  cidr_ipv4   = "0.0.0.0/0"
-
-  ip_protocol = "-1"  
+# Egress: HTTPS → internet
+resource "aws_security_group_rule" "langflow_egress_https" {
+  type              = "egress"
+  description       = "Allow HTTPS (TCP 443) outbound"
+  from_port         = 443
+  to_port           = 443
+  protocol          = "tcp"
+  security_group_id = aws_security_group.SG_langflow.id
+  cidr_blocks       = ["0.0.0.0/0"]
 }

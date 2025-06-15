@@ -27,8 +27,14 @@ resource "aws_route_table_association" "main_public" {
 resource "aws_route_table" "private_route_table" {
   vpc_id = aws_vpc.main.id
 
+  # Send all outbound traffic from the private subnet through the NAT gateway
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.langflow_nat.id
+  }
+
   tags = {
-    Name = "Private route table does not need any explicit routes."
+    Name = "Route private subnet traffic to NAT gateway"
   }
 }
 
