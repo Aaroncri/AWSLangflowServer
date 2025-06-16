@@ -28,7 +28,7 @@ python -m pip install uv
 uv pip install langflow
 
 #Install npm
-sudo apt install npm 
+sudo apt install -y npm 
 
 #Install MCP inspector: 
 npx @modelcontextprotocol/inspector
