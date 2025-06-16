@@ -27,5 +27,11 @@ python -m pip install --upgrade pip
 python -m pip install uv
 uv pip install langflow
 
+#Install npm
+sudo apt install npm 
+
+#Install MCP inspector: 
+npx @modelcontextprotocol/inspector
+
 # Start Langflow in the background, listening on all interfaces
 nohup "$INSTALL_DIR/.venv/bin/langflow" run --host 0.0.0.0 > /var/log/langflow.log 2>&1 &
