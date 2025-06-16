@@ -3,21 +3,19 @@ This is an AWS environment deployed in terraform for the purposes of hosting a L
 To run the script yourself, you'll need to do the following: 
 
 1. Have terraform and AWS CLI installed on your local machine
-2. Create an SSH keypair with the command: 
 
-$ ssh-keygen -t rsa -b 4096 -f ~/.ssh/langflow_ssh_key
-
-3. To connect for testing you can do the following: 
+2. To connect for testing you can do the following: 
 
 -Run the following terraform commands: 
 
     terraform init 
-    terraform plan
-    terraform apply
+
+-Run the deploy script: 
+    chmod +x deploy_script.sh && ./deploy_script
 
 -The output block in ec2_instances.tf should cause the script to output
-the public IP address of the jump box, which you will need to connect
-via SSH. 
+the public IP address of the jump box, which will be used to update 
+~/.ssh/config.langflow, as to 
 
 -To connect to your servers, you can add the following to ~/.ssh/config: 
 
@@ -37,7 +35,7 @@ using the jump box IP that the script outputs. Note that as we have
 configured this, the public IP of the jump box may change when you shut 
 it off and restart it! 
 
-To see the public IP of your instance, you can run: 
+-To see the public IP of your instance, you can run: 
 
 $aws ec2 describe-instances \
   --query "Reservations[*].Instances[*].PublicIpAddress"  \
