@@ -1,29 +1,31 @@
 #!/bin/bash
-set -e
+set -xe
 
+# Log output to both file and console for easier debugging
 exec > >(tee /var/log/langflow-setup.log|logger -t user-data -s 2>/dev/console) 2>&1
 
 # Update and install system dependencies
-apt update
+for i in {1..10}; do
+  apt update && break
+  echo "Retrying apt update in 10s..."
+  sleep 10
+done
+
 apt install -y python3 python3-pip python3-venv build-essential python3-dev
 
-# Create application directory
+# Set up Langflow install directory
 INSTALL_DIR="/opt/langflow"
 mkdir -p "$INSTALL_DIR"
 cd "$INSTALL_DIR"
 
-# Set up Python virtual environment
+# Create and activate Python virtual environment
 python3 -m venv .venv
 source .venv/bin/activate
 
-# Upgrade pip in venv and install uv in venv
-pip install --upgrade pip
-pip install uv
-
-# Install Langflow with uv (in venv)
+# Upgrade pip, install uv, and then Langflow (inside venv)
+python -m pip install --upgrade pip
+python -m pip install uv
 uv pip install langflow
 
-# Start Langflow in the background and log output
+# Start Langflow in the background, listening on all interfaces
 nohup "$INSTALL_DIR/.venv/bin/langflow" run --host 0.0.0.0 > /var/log/langflow.log 2>&1 &
-
-echo "Langflow installation complete. Access it on port 7860."

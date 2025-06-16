@@ -19,6 +19,10 @@ output "jump_box_public_ip" {
   value = aws_instance.jump_box.public_ip
 }
 
+output "jump_box_user" {
+  value = "ubuntu"  # or use a variable if needed
+}
+
 #########################################################
 ######  Langflow Box (for Jump Box connection)  ########
 #########################################################
@@ -43,7 +47,9 @@ Then connect to the jump box with agent forwarding:
 This lets you securely SSH from the jump box into the Langflow instance in the private subnet.
 */
 
+
 resource "aws_instance" "langflow" {
+  depends_on = [aws_nat_gateway.langflow_nat]
   ami                    = "ami-020cba7c55df1f615"
   instance_type          = "t2.large"
   key_name               = aws_key_pair.jump_box_key.key_name
@@ -54,4 +60,14 @@ resource "aws_instance" "langflow" {
   tags = {
     Name = "Langflow"
   }
+
+  user_data = file("./scripts/setup-langflow.sh")
+}
+
+output "langflow_private_ip" {
+  value = aws_instance.langflow.private_ip
+}
+
+output "langflow_user" {
+  value = "ubuntu"  # or use a variable if needed
 }

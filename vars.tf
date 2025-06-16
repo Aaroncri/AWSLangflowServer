@@ -28,3 +28,15 @@ variable "langflow_private_ip" {
   type        = string
   default     = "10.0.2.30"
 }
+
+variable "key_name" {
+  description = "The name of the SSH key pair"
+  type        = string
+  default     = "langflow_ssh_key"
+}
+
+variable "public_key_path" {
+  description = "Path to the public key file"
+  type        = string
+  default     = "~/.ssh/langflow_ssh_key.pub"
+}
